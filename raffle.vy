@@ -26,39 +26,40 @@ charity_address: public(address)
 
 @public
 def __init__(_charity_address: address):
-    # Assign charity to pay out to.
-    # Set sale_ends to SALE_ROUND_LENGTH block away.
-    pass
+    self.charity_address = _charity_address
+    self.sale_ends = block.number + SALE_ROUND_LENGTH
 
 @payable
 @public
 def buy(participant: address, ticket_number: uint256):
-    # Assign prarticipant address to ticket number
-    # Increment participant_count
-    pass
+    assert participant != ZERO_ADDRESS
+    assert msg.value == as_wei_value(0.05, 'ether')
+    assert ticket_number <= MAX_PARTICIPANTS
+    assert self.participants[ticket_number] == ZERO_ADDRESS
+    assert block.number < self.sale_ends
+    self.participants[ticket_number] = participant
+    self.participant_count += 1
+    log.TicketBought(ticket_number, participant)
 
 
 @private
 @constant
 def generate_rand() -> uint256:
-    # DO NOT EVER DEPLOY THIS TO MAINNET.
-    # Hash the the previous block number,
-    # Convert to uint256 and modulo by the participant_count
-    return 1
+    hash: bytes32 = sha3(convert(block.number - 1, bytes32))
+    return convert(hash, uint256) % self.participant_count
 
 
 # Roll the dice, and store the winning number.
 @public
 def roll_dice():
-    # Make sure sale has ended
-    # Generate winning number and store
-    # Set rolled
-    pass
+    assert block.number >= self.sale_ends
+    self.winning_number = self.generate_rand()
+    self.rolled = True
+    log.WinnerPicked(self.winning_number)
 
 
 # if you have the winning ticket cash out.
 @public
 def payout():
-    # send 10% to winner
-    # destroy contract and payout 90% (or the balance) to charity address.
-    pass
+    send(self.participants[self.winning_number], self.balance * 1 / 10)
+    selfdestruct(self.charity_address)
